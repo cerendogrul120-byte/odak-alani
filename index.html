@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OdakAlanı &mdash; Huzurlu Çalışma ve Ambiyans İstasyonu</title>
+  <meta name="description" content="Üretkenliği ve konsantrasyonu artıran, ortam sesleri mikseri, Pomodoro sayacı ve görev panosu içeren modern interaktif çalışma alanı.">
+  
+  <!-- Google Yazı Tipleri -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  
+  <!-- İkon Kütüphanesi (Phosphor) -->
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="theme-aurora">
+  <!-- Dinamik Arka Plan Çizim Alanı -->
+  <canvas id="bg-canvas"></canvas>
+  <div class="overlay-glow"></div>
+
+  <!-- Üst Navigasyon Çubuğu -->
+  <header class="top-bar">
+    <div class="brand">
+      <div class="brand-badge">
+        <i class="ph-fill ph-sparkle"></i>
+      </div>
+      <div class="brand-text">
+        <h1 class="logo-title">OdakAlanı</h1>
+        <span class="logo-subtitle">Huzurlu Çalışma İstasyonu</span>
+      </div>
+    </div>
+
+    <!-- Canlı Durum / Oturum Bilgisi -->
+    <div class="session-pill" id="header-session-pill">
+      <span class="pulse-dot"></span>
+      <span id="header-timer-display">25:00</span>
+      <span class="pill-divider">|</span>
+      <span id="header-status-label">Odaklanma Zamanı</span>
+    </div>
+
+    <!-- Üst Sağ Eylemler -->
+    <div class="top-actions">
+      <div class="clock-display" id="clock-display">00:00:00</div>
+      <button class="icon-btn" id="zen-mode-toggle" title="Sade Mod (Tüm pencereleri gizle)">
+        <i class="ph ph-corners-out"></i>
+      </button>
+      <button class="icon-btn" id="theme-toggle" title="Renk Temasını Değiştir">
+        <i class="ph ph-palette"></i>
+      </button>
+      <button class="profile-chip" id="open-profile-btn" title="Geliştirici Hakkında">
+        <span class="avatar-ring">
+          <i class="ph-bold ph-user"></i>
+        </span>
+        <span class="chip-name">Hakkımda</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Pencerelerin Yer Aldığı Masaüstü Alanı -->
+  <main class="desktop-area" id="desktop-area">
+
+    <!-- PENCERE 1: Pomodoro & Odaklanma Sayacı -->
+    <div class="glass-window active" id="win-pomodoro" style="top: 100px; left: 60px; width: 360px;" data-window="pomodoro">
+      <div class="window-header">
+        <div class="win-controls">
+          <button class="win-btn win-close" title="Kapat" data-target="pomodoro"></button>
+          <button class="win-btn win-minimize" title="Küçült" data-target="pomodoro"></button>
+          <button class="win-btn win-expand" title="Boyutlandır"></button>
+        </div>
+        <div class="win-title">
+          <i class="ph-bold ph-timer"></i>
+          <span>Odak & Pomodoro</span>
+        </div>
+        <div class="win-action">
+          <button class="icon-subtle-btn" id="timer-settings-btn" title="Süre Bilgisi">
+            <i class="ph ph-info"></i>
+          </button>
+        </div>
+      </div>
+      <div class="window-body pomodoro-body">
+        <!-- Mod Sekmeleri -->
+        <div class="mode-tabs">
+          <button class="mode-btn active" data-mode="work">Odak (25 dk)</button>
+          <button class="mode-btn" data-mode="short">Kısa Mola (5 dk)</button>
+          <button class="mode-btn" data-mode="long">Uzun Mola (15 dk)</button>
+        </div>
+
+        <!-- Dairesel Sayaç -->
+        <div class="timer-circle-container">
+          <svg class="timer-svg" viewBox="0 0 220 220">
+            <circle class="timer-bg-circle" cx="110" cy="110" r="95"></circle>
+            <circle class="timer-progress-circle" id="timer-progress-ring" cx="110" cy="110" r="95"></circle>
+          </svg>
+          <div class="timer-inner-content">
+            <div class="timer-time" id="timer-time">25:00</div>
+            <div class="timer-label" id="timer-label">Derin Odaklanma</div>
+          </div>
+        </div>
+
+        <!-- Sayaç Kontrolleri -->
+        <div class="timer-controls">
+          <button class="ctrl-btn secondary-btn" id="timer-reset-btn" title="Başa Al">
+            <i class="ph-bold ph-arrow-counter-clockwise"></i>
+          </button>
+          <button class="ctrl-btn primary-btn" id="timer-toggle-btn">
+            <i class="ph-fill ph-play" id="timer-play-icon"></i>
+            <span id="timer-toggle-text">Başlat</span>
+          </button>
+          <button class="ctrl-btn secondary-btn" id="timer-skip-btn" title="Sonraki Aşama">
+            <i class="ph-bold ph-skip-forward"></i>
+          </button>
+        </div>
+
+        <div class="pomodoro-stats">
+          <div class="stat-item">
+            <span class="stat-val" id="stat-sessions">0</span>
+            <span class="stat-sub">Tamamlanan Tur</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-val" id="stat-minutes">0 dk</span>
+            <span class="stat-sub">Toplam Odak Süresi</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PENCERE 2: Ortam Sesleri Mikseri -->
+    <div class="glass-window active" id="win-ambient" style="top: 100px; right: 60px; width: 420px;" data-window="ambient">
+      <div class="window-header">
+        <div class="win-controls">
+          <button class="win-btn win-close" title="Kapat" data-target="ambient"></button>
+          <button class="win-btn win-minimize" title="Küçült" data-target="ambient"></button>
+          <button class="win-btn win-expand" title="Boyutlandır"></button>
+        </div>
+        <div class="win-title">
+          <i class="ph-bold ph-faders"></i>
+          <span>Ortam Sesleri Mikseri</span>
+        </div>
+        <div class="win-action">
+          <button class="icon-subtle-btn" id="mute-all-btn" title="Tümünü Sustur / Aç">
+            <i class="ph-bold ph-speaker-high" id="mute-all-icon"></i>
+          </button>
+        </div>
+      </div>
+      <div class="window-body">
+        <p class="section-hint">Konsantrasyonunuzu artırmak için doğal ses katmanlarını harmanlayın (Tarayıcıda anlık üretilir):</p>
+        
+        <div class="sound-grid">
+          <!-- Ilık Yağmur -->
+          <div class="sound-card" data-sound="rain">
+            <div class="sound-info">
+              <div class="sound-icon-box">
+                <i class="ph-fill ph-cloud-rain"></i>
+              </div>
+              <div class="sound-details">
+                <span class="sound-name">Ilık Yağmur</span>
+                <span class="sound-status">Kapalı</span>
+              </div>
+            </div>
+            <div class="slider-wrapper">
+              <input type="range" class="sound-slider" min="0" max="100" value="0" data-sound="rain">
+            </div>
+          </div>
+
+          <!-- Gök Gürültüsü -->
+          <div class="sound-card" data-sound="thunder">
+            <div class="sound-info">
+              <div class="sound-icon-box">
+                <i class="ph-fill ph-cloud-lightning"></i>
+              </div>
+              <div class="sound-details">
+                <span class="sound-name">Gök Gürültüsü</span>
+                <span class="sound-status">Kapalı</span>
+              </div>
+            </div>
+            <div class="slider-wrapper">
+              <input type="range" class="sound-slider" min="0" max="100" value="0" data-sound="thunder">
+            </div>
+          </div>
+
+          <!-- Okyanus Dalgaları -->
+          <div class="sound-card" data-sound="ocean">
+            <div class="sound-info">
+              <div class="sound-icon-box">
+                <i class="ph-fill ph-waves"></i>
+              </div>
+              <div class="sound-details">
+                <span class="sound-name">Okyanus Dalgası</span>
+                <span class="sound-status">Kapalı</span>
+              </div>
+            </div>
+            <div class="slider-wrapper">
+              <input type="range" class="sound-slider" min="0" max="100" value="0" data-sound="ocean">
+            </div>
+          </div>
+
+          <!-- Şömine Çatırtısı -->
+          <div class="sound-card" data-sound="fire">
+            <div class="sound-info">
+              <div class="sound-icon-box">
+                <i class="ph-fill ph-fire"></i>
+              </div>
+              <div class="sound-details">
+                <span class="sound-name">Şömine Çatırtısı</span>
+                <span class="sound-status">Kapalı</span>
+              </div>
+            </div>
+            <div class="slider-wrapper">
+              <input type="range" class="sound-slider" min="0" max="100" value="0" data-sound="fire">
+            </div>
+          </div>
+
+          <!-- Rüzgar -->
+          <div class="sound-card" data-sound="wind">
+            <div class="sound-info">
+              <div class="sound-icon-box">
+                <i class="ph-fill ph-wind"></i>
+              </div>
+              <div class="sound-details">
+                <span class="sound-name">Hafif Rüzgar</span>
+                <span class="sound-status">Kapalı</span>
+              </div>
+            </div>
+            <div class="slider-wrapper">
+              <input type="range" class="sound-slider" min="0" max="100" value="0" data-sound="wind">
+            </div>
+          </div>
+
+          <!-- Kahve Dükkanı Uğultusu -->
+          <div class="sound-card" data-sound="cafe">
+            <div class="sound-info">
+              <div class="sound-icon-box">
+                <i class="ph-fill ph-coffee"></i>
+              </div>
+              <div class="sound-details">
+                <span class="sound-name">Kahve Dükkanı</span>
+                <span class="sound-status">Kapalı</span>
+              </div>
+            </div>
+            <div class="slider-wrapper">
+              <input type="range" class="sound-slider" min="0" max="100" value="0" data-sound="cafe">
+            </div>
+          </div>
+        </div>
+
+        <!-- Hızlı Hazır Ayarlar -->
+        <div class="presets-row">
+          <span class="preset-title">Hızlı Modlar:</span>
+          <button class="preset-tag" data-preset="rainy-night">🌧️ Yağmurlu Gece</button>
+          <button class="preset-tag" data-preset="cozy-cabin">🔥 Sıcak Şömine</button>
+          <button class="preset-tag" data-preset="coastal-zen">🌊 Sahil Esintisi</button>
+          <button class="preset-tag" data-preset="clear-all">Sustur</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PENCERE 3: Hedefler ve Not Defteri -->
+    <div class="glass-window" id="win-tasks" style="top: 240px; left: 450px; width: 440px;" data-window="tasks">
+      <div class="window-header">
+        <div class="win-controls">
+          <button class="win-btn win-close" title="Kapat" data-target="tasks"></button>
+          <button class="win-btn win-minimize" title="Küçült" data-target="tasks"></button>
+          <button class="win-btn win-expand" title="Boyutlandır"></button>
+        </div>
+        <div class="win-title">
+          <i class="ph-bold ph-check-square"></i>
+          <span>Hedefler & Not Defteri</span>
+        </div>
+        <div class="win-action">
+          <span class="badge-count" id="task-count">0/0</span>
+        </div>
+      </div>
+      <div class="window-body">
+        <!-- Sekmeler -->
+        <div class="task-tabs">
+          <button class="tab-btn active" id="tab-tasks-btn">Görevlerim</button>
+          <button class="tab-btn" id="tab-notes-btn">Hızlı Notlar</button>
+        </div>
+
+        <!-- Görevler Görünümü -->
+        <div class="tab-content" id="view-tasks">
+          <form class="new-task-form" id="new-task-form">
+            <input type="text" id="task-input" placeholder="Bugün neyi tamamlayacaksınız? (Enter)..." autocomplete="off" required>
+            <button type="submit" class="add-task-btn" title="Görev Ekle">
+              <i class="ph-bold ph-plus"></i>
+            </button>
+          </form>
+
+          <ul class="task-list" id="task-list">
+            <!-- Dinamik görevler buraya gelir -->
+          </ul>
+        </div>
+
+        <!-- Not Defteri Görünümü -->
+        <div class="tab-content hidden" id="view-notes">
+          <textarea id="scratchpad-area" placeholder="Aklınıza gelen fikirleri, yapılacakları veya kod parçalarını buraya yazın. Tarayıcınıza otomatik kaydedilir..."></textarea>
+          <div class="scratchpad-footer">
+            <span class="save-status" id="save-status"><i class="ph ph-check"></i> Kaydedildi</span>
+            <button class="text-btn" id="clear-notes-btn">Temizle</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PENCERE 4: Zihin Molası & Nefes Egzersizi -->
+    <div class="glass-window hidden" id="win-breathe" style="top: 180px; left: 320px; width: 380px;" data-window="breathe">
+      <div class="window-header">
+        <div class="win-controls">
+          <button class="win-btn win-close" title="Kapat" data-target="breathe"></button>
+          <button class="win-btn win-minimize" title="Küçült" data-target="breathe"></button>
+          <button class="win-btn win-expand" title="Boyutlandır"></button>
+        </div>
+        <div class="win-title">
+          <i class="ph-bold ph-lungs"></i>
+          <span>Nefes Egzersizi & Rahatlama</span>
+        </div>
+      </div>
+      <div class="window-body breathe-body">
+        <div class="breathe-desc">Ritminizi düzenleyerek dikkatinizi toplayın:</div>
+        
+        <div class="breathe-circle-wrapper">
+          <div class="breathe-circle" id="breathe-circle"></div>
+          <div class="breathe-instruction" id="breathe-instruction">Hazır</div>
+        </div>
+
+        <div class="breathe-pattern-picker">
+          <button class="pattern-btn active" data-pattern="box">Kutu Nefesi (4-4-4-4)</button>
+          <button class="pattern-btn" data-pattern="relax">4-7-8 Sakinleşme</button>
+        </div>
+        
+        <button class="ctrl-btn primary-btn" id="breathe-toggle-btn">
+          <i class="ph-fill ph-play" id="breathe-icon"></i>
+          <span id="breathe-btn-text">Egzersizi Başlat</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- PENCERE 5: Geliştirici Vitrini & Bilgilendirme -->
+    <div class="glass-window hidden" id="win-profile" style="top: 120px; left: calc(50% - 240px); width: 480px;" data-window="profile">
+      <div class="window-header">
+        <div class="win-controls">
+          <button class="win-btn win-close" title="Kapat" data-target="profile"></button>
+          <button class="win-btn win-minimize" title="Küçült" data-target="profile"></button>
+          <button class="win-btn win-expand" title="Boyutlandır"></button>
+        </div>
+        <div class="win-title">
+          <i class="ph-bold ph-identification-card"></i>
+          <span>Geliştirici Vitrini</span>
+        </div>
+      </div>
+      <div class="window-body profile-body">
+        <div class="profile-hero">
+          <div class="hero-avatar">
+            <span class="avatar-letter">CR</span>
+          </div>
+          <div class="hero-meta">
+            <h2 class="profile-name">Ceren</h2>
+            <p class="profile-title">Yazılım Geliştirici & Üretkenlik Meraklısı</p>
+            <div class="profile-tags">
+              <span class="tech-tag">JavaScript</span>
+              <span class="tech-tag">HTML5 / Web Ses API</span>
+              <span class="tech-tag">Modern Arayüz Tasarımı</span>
+              <span class="tech-tag">Üretkenlik Araçları</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="profile-quote">
+          <i class="ph-fill ph-quotes"></i>
+          <p id="daily-quote-text">"Büyük işler, bir dizi küçük adımın kararlılıkla atılmasıyla gerçekleşir."</p>
+        </div>
+
+        <div class="profile-about-box">
+          <h3>Bu Proje Hakkında</h3>
+          <p>
+            <strong>OdakAlanı</strong>, dikkat dağınıklığını en aza indirmek ve derin çalışma ortamı sunmak için geliştirilmiş, harici hiçbir kütüphaneye bağımlı kalmadan doğrudan tarayıcıda çalışan modern bir üretkenlik merkezidir.
+          </p>
+          <ul>
+            <li>✨ <strong>Sıfır Dış Ses Dosyası:</strong> Sesler tarayıcının ses motoruyla gerçek zamanlı üretilir, internet kopması durumunda dahi kesintisiz çalar.</li>
+            <li>✨ <strong>Masaüstü Deneyimi:</strong> Pencereleri serbestçe taşıyabilir, simge durumuna küçültebilir ve çalışma alanınızı kişiselleştirebilirsiniz.</li>
+            <li>✨ <strong>GitHub Pages Uyumlu:</strong> Kurulum gerektirmeden tek tıkla doğrudan ziyaretçilere açılabilir.</li>
+          </ul>
+        </div>
+
+        <div class="profile-actions">
+          <a href="https://github.com" target="_blank" rel="noopener noreferrer" class="github-link-btn" id="profile-github-link">
+            <i class="ph-bold ph-github-logo"></i>
+            <span>GitHub Profilimi Ziyaret Et</span>
+            <i class="ph ph-arrow-up-right"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Alt Kısayol Menüsü (Dock) -->
+  <footer class="dock-container" id="dock-bar">
+    <div class="dock-inner">
+      <button class="dock-item active" data-app="pomodoro" title="Odak & Pomodoro">
+        <div class="dock-icon">
+          <i class="ph-fill ph-timer"></i>
+        </div>
+        <span class="dock-dot"></span>
+        <span class="dock-tooltip">Pomodoro Sayacı</span>
+      </button>
+
+      <button class="dock-item active" data-app="ambient" title="Ortam Sesleri">
+        <div class="dock-icon">
+          <i class="ph-fill ph-faders"></i>
+        </div>
+        <span class="dock-dot"></span>
+        <span class="dock-tooltip">Ortam Sesleri Mikseri</span>
+      </button>
+
+      <button class="dock-item" data-app="tasks" title="Görevler & Notlar">
+        <div class="dock-icon">
+          <i class="ph-fill ph-check-square"></i>
+        </div>
+        <span class="dock-dot"></span>
+        <span class="dock-tooltip">Hedefler & Notlar</span>
+      </button>
+
+      <button class="dock-item" data-app="breathe" title="Nefes Egzersizi">
+        <div class="dock-icon">
+          <i class="ph-fill ph-lungs"></i>
+        </div>
+        <span class="dock-dot"></span>
+        <span class="dock-tooltip">Nefes Egzersizi</span>
+      </button>
+
+      <div class="dock-separator"></div>
+
+      <button class="dock-item" data-app="profile" title="Geliştirici Vitrini">
+        <div class="dock-icon user-icon">
+          <i class="ph-fill ph-user-circle"></i>
+        </div>
+        <span class="dock-dot"></span>
+        <span class="dock-tooltip">Hakkımda</span>
+      </button>
+    </div>
+  </footer>
+
+  <!-- Betikler -->
+  <script src="audio.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
